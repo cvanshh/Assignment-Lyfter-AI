@@ -1,115 +1,172 @@
-Relay — Resilient LLM Chatbot
+Relay | Resilient LLM Chatbot
 
-A reliable, full-stack AI chatbot engineered for intelligent API failover, response caching, and persistent conversations.
+Building reliable AI conversations with automatic API failover, intelligent caching, and persistent session management.
 
-Relay is built using FastAPI, LiteLLM, React, and SQLite. It addresses common challenges in LLM applications by automatically handling API failures, reducing redundant model calls, and maintaining contextual conversations.
+Relay is a full-stack LLM chatbot built with React, FastAPI, LiteLLM, and SQLite. It improves application reliability by handling API failures automatically, reducing redundant model calls, and maintaining contextual conversations.
 
-1. Live Demo
+<p align="center">  <a href="https://assignment-lyfter-ai.vercel.app/">
+    <img src="https://img.shields.io/badge/Live%20Demo-Visit%20App-blue?style=for-the-badge" />
+  </a>
+  <a href="https://drive.google.com/file/d/1nnplIg33chDTSIYpJa7ZNr1NzXY-K1CM/view?usp=drivesdk">
+    <img src="https://img.shields.io/badge/Watch-Demo%20Video-red?style=for-the-badge" />
+  </a></p>---
 
-Component| Link
-Frontend| "Live Application" (https://assignment-lyfter-ai.vercel.app/)
-Backend| "Backend Service" (https://assignment-lyfter-ai-1.onrender.com)
-Demo Video| "Watch Project Demo" (https://drive.google.com/file/d/1nnplIg33chDTSIYpJa7ZNr1NzXY-K1CM/view?usp=drivesdk)
+Live Deployment
 
-2. Features
+- Frontend: "Relay Web Application" (https://assignment-lyfter-ai.vercel.app/)
+- Backend: "Render Backend" (https://assignment-lyfter-ai-1.onrender.com)
+- Demo Video: "Watch Project Demonstration" (https://drive.google.com/file/d/1nnplIg33chDTSIYpJa7ZNr1NzXY-K1CM/view?usp=drivesdk)
 
-- Automatic API Key Failover: Automatically switches between configured Gemini API keys when requests fail.
-- Intelligent Response Caching: Avoids redundant LLM calls using LiteLLM's built-in caching.
-- Multi-turn Conversations: Maintains contextual chat history using SQLite.
-- Request Metadata: Displays model information, response source, latency, and token usage.
-- Failure Simulation: Simulates API failures to demonstrate fallback mechanisms without exhausting real API keys.
-- Key Cooldown: Temporarily deprioritizes failed keys to improve reliability.
-- Secure Configuration: Keeps API credentials in environment variables.
-- Docker Support: Runs the complete application using Docker Compose.
+---
 
-3. Technology Stack
+Tech Stack
 
-Component| Technologies
-Frontend| React, Vite, JavaScript
-Backend| Python, FastAPI
-LLM Integration| LiteLLM, Google Gemini
-Database| SQLite
-Caching| LiteLLM Cache
-Deployment| Vercel, Render
-Containerization| Docker, Docker Compose
-Testing| Pytest
+Frontend
 
-4. System Architecture
+- React
+- Vite
+- JavaScript
+
+Backend
+
+- Python
+- FastAPI
+- LiteLLM
+
+AI & Storage
+
+- Google Gemini
+- SQLite
+- LiteLLM Response Cache
+
+DevOps & Testing
+
+- Docker
+- Docker Compose
+- Render
+- Vercel
+- Pytest
+
+---
+
+Key Features
+
+1. Automatic API Key Failover
+
+- Maintains an ordered pool of Gemini API keys.
+- Automatically switches keys when requests fail.
+- Handles rate limits, quota errors, authentication failures, and server errors.
+- Implements a 30-second cooldown for failed keys.
+
+2. Intelligent Response Caching
+
+- Uses LiteLLM's built-in caching.
+- Avoids unnecessary repeated LLM requests.
+- Identifies cache hits and live inference separately.
+- Supports in-memory and disk-based caching.
+
+3. Persistent Conversations
+
+- Stores conversation history in SQLite.
+- Supports contextual multi-turn conversations.
+- Maintains separate sessions.
+- Supports per-session system prompts.
+
+4. Request-Level Analytics
+
+- Model identification.
+- Response latency.
+- Input and output token usage.
+- Cache versus live inference status.
+
+5. Failure Simulation
+
+- Simulates API failures without exhausting real API keys.
+- Demonstrates automatic fallback.
+- Supports individual-key and complete-failure scenarios.
+
+6. Additional Reliability Features
+
+- Visual API routing trail.
+- Live key-pool status panel.
+- Cross-session cache replay.
+- Structured error handling.
+- Secure environment-based API key management.
+
+---
+
+System Architecture
 
 flowchart TD
     A[React Frontend] --> B[FastAPI Backend]
     B --> C[Session Manager]
-    C --> D[SQLite Database]
+    C --> D[(SQLite Database)]
     B --> E[LiteLLM Gateway]
     E --> F{Response Cache}
-    F -->|Cache Hit| G[Cached Response]
-    F -->|Cache Miss| H[API Key Pool]
+    F -->|Hit| G[Cached Response]
+    F -->|Miss| H[API Key Pool]
     H --> I[Gemini Key 1]
     I -->|Failure| J[Gemini Key 2]
     I -->|Success| K[Generate Response]
     J -->|Success| K
-    K --> L[Store Conversation]
+    K --> L[Save Conversation]
     L --> A
     G --> A
 
-How It Works
+Request Lifecycle
 
-1. The user sends a message through the React interface.
-2. FastAPI retrieves the conversation history from SQLite.
-3. LiteLLM checks whether a matching response exists in the cache.
-4. On a cache miss, the gateway attempts inference using the configured API keys.
-5. If an API key fails, the next available key is attempted automatically.
+1. User submits a message through the React interface.
+2. FastAPI retrieves the relevant conversation history.
+3. LiteLLM checks the response cache.
+4. On a cache miss, the gateway attempts inference.
+5. If an API key fails, the next available key is attempted.
 6. The successful response and metadata are stored.
-7. The frontend displays the response along with its execution details.
+7. The frontend displays the answer and request analytics.
 
-5. Key Design Decisions
+---
 
-A. API Key Failover
+Design Decisions
 
-Relay uses a sequential API key pool instead of relying on a single API key.
+API Key Management
+
+Instead of relying on a single API key, Relay uses a sequential key pool.
 
 - Each key is attempted individually.
 - Failed requests trigger automatic fallback.
-- Handles rate limits, quota errors, authentication errors, timeouts, and server errors.
-- Failed keys receive a temporary 30-second cooldown.
-- Simulated failures do not trigger cooldowns.
-- Returns a structured "503" response if all configured keys fail.
+- Failed keys receive a temporary cooldown.
+- If all keys fail, the backend returns a structured HTTP 503 response.
 
-API keys are identified using labels such as "key_1" and "key_2", never their actual values.
+Caching Strategy
 
-B. Response Caching
+Caching is implemented through LiteLLM.
 
-Uses LiteLLM's built-in caching mechanism.
+- Cache identity depends on the model and complete message list.
+- Cache hits return "LLM_CACHE".
+- Fresh responses return "LIVE_INFERENCE".
+- Failure simulation bypasses caching.
 
-- Cache keys are based on the model and complete message history.
-- Identical requests can reuse previously generated responses.
-- Cache hits report "LLM_CACHE".
-- Fresh responses report "LIVE_INFERENCE".
-- Simulated failure requests bypass caching.
+Database Design
 
-Supports in-memory and disk-based caching configurations.
+SQLite handles session and message persistence.
 
-C. SQLite Session Management
+- Unique session identifiers.
+- Separate user and assistant messages.
+- Stored response metadata.
+- Transactional conversation writes.
+- Automatic database initialization.
 
-SQLite maintains persistent conversation history.
+Security
 
-- Every conversation has a unique session ID.
-- User and assistant messages are stored separately.
-- Previous messages are retrieved to maintain context.
-- System prompts are maintained per session.
-- Successful conversation turns are committed transactionally.
+- API keys remain in environment variables.
+- Credentials are never exposed in API responses.
+- Configurable CORS restrictions.
+- Input validation.
+- Structured error responses.
+- Non-root Docker containers.
 
-D. Security and Reliability
+---
 
-- API keys are stored in environment variables.
-- Sensitive credentials are never exposed in API responses or logs.
-- CORS is restricted to configured frontend origins.
-- Input validation prevents invalid requests.
-- Errors are returned as structured JSON.
-- Docker containers run using a non-root user.
-- Failure simulation is disabled unless explicitly enabled.
-
-6. Run Locally
+Getting Started
 
 Prerequisites
 
@@ -118,119 +175,125 @@ Prerequisites
 - Docker Desktop (optional)
 - At least two Gemini API keys for failover testing.
 
-Option A: Using Docker
-
-Clone the repository:
+1. Clone the Repository
 
 git clone <your-github-repository-url>
 cd lyftr-chatbot
 
-Create the environment file:
+2. Configure Environment Variables
 
 cp .env.example .env
 
-Configure your Gemini API keys:
+Add your API keys:
 
 LLM_API_KEYS=your_key_1,your_key_2
 
-Start the application:
+Never commit real API keys to GitHub.
+
+3. Run with Docker
 
 make up
 
-Access the application:
+Application URLs:
 
 - Frontend: http://localhost:3000
 - Backend: http://localhost:8000
 
-Stop the application:
+To stop:
 
 make down
 
-Option B: Windows (Without Docker)
+4. Run Without Docker (Windows)
 
-Create the environment file:
-
-cp .env.example .env
-
-Configure your API keys or enable mock mode for an offline demonstration.
-
-Start both services:
+Start both services using:
 
 .\start.ps1
 
-Alternatively, run them separately.
+Alternatively, start the backend and frontend separately.
 
-Backend:
+Backend
 
 cd backend
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000
 
-Frontend:
+Frontend
 
 cd frontend
 npm install
 npm run dev
 
-7. Deployment
+---
 
-Relay is deployed using Vercel and Render.
+Testing
 
-Frontend — Vercel
-
-https://assignment-lyfter-ai.vercel.app/
-
-Backend — Render
-
-https://assignment-lyfter-ai-1.onrender.com
-
-Deployment Configuration
-
-1. Push the project to GitHub.
-2. Deploy the frontend through Vercel.
-3. Deploy the backend through Render.
-4. Configure "VITE_API_URL" with the deployed backend URL.
-5. Configure the required backend environment variables.
-6. Set "ALLOWED_ORIGINS" to the deployed frontend URL.
-
-For persistent SQLite storage across container restarts, configure a persistent disk on Render.
-
-8. Testing and Verification
-
-Backend tests can be executed without real API keys using LiteLLM mock mode.
+Run the backend test suite:
 
 cd backend
 .\.venv\Scripts\python.exe -m pytest -v
 
-The following scenarios can be demonstrated directly through the application:
+Failure Simulation
 
-Test Scenario| Expected Behaviour
-Normal Chat| Generates an AI response
-Cache Hit| Reuses a previously cached response
-API Key Failure| Automatically switches to another key
-Complete API Failure| Displays a readable error
-Multi-turn Chat| Retains previous conversation context
-Token Tracking| Displays per-request token usage
+Simulate a rate-limit error for the first key:
 
-9. Additional Features
+curl -X POST http://localhost:8000/chat \
+-H "Content-Type: application/json" \
+-H "X-Simulate-Failure: key_1=429" \
+-d '{"session_id":"test1","message":"Hello Relay"}'
 
-Beyond the core requirements, Relay includes:
+Cache Verification
 
-- Visual Routing Trail: Shows which API key failed and which key successfully generated the response.
-- Live Key Pool Panel: Displays the status of configured API keys.
-- One-click Failure Simulator: Demonstrates different failure scenarios directly through the interface.
-- Cross-session Cache Replay: Replays an earlier message in a new session to demonstrate cache reuse.
-- Key Cooldown Mechanism: Prevents repeatedly attempting recently failed keys.
-- Per-session System Prompts: Supports customized instructions for individual conversations.
-- Readable Error Handling: Displays understandable messages for validation, server, and network failures.
+Send identical messages using different session IDs to demonstrate cross-session cache reuse.
 
-10. Development Tools
+Complete Failure
 
-- Visual Studio Code
-- Claude — AI-assisted scaffolding and code review
-- Docker Desktop
-- Pytest
-- Git and GitHub
+Use the following header to simulate failure across all keys:
+
+X-Simulate-Failure: *=429
+
+The backend should return a structured "503" response.
 
 ---
 
-Relay — Making LLM applications more reliable, resilient, and efficient.
+Deployment
+
+Relay uses:
+
+- Vercel: React frontend hosting.
+- Render: FastAPI backend hosting.
+
+The frontend communicates with the deployed backend through "VITE_API_URL".
+
+Backend configuration includes:
+
+- "LLM_API_KEYS"
+- "DATABASE_URL"
+- "ALLOWED_ORIGINS"
+- "ENABLE_FAILURE_SIMULATION"
+- "CACHE_TYPE"
+
+For persistent SQLite storage across Render restarts, configure a persistent disk.
+
+---
+
+Development Tools
+
+- Visual Studio Code
+- Claude — AI-assisted development and code review
+- Docker Desktop
+- Git & GitHub
+- Pytest
+
+---
+
+Author
+
+Shivansh Jha
+
+- "LinkedIn" (https://www.linkedin.com/in/shivanshjha2509/)
+- "GitHub" (https://github.com/)
+
+---
+
+<p align="center">
+  <strong>Relay — Reliable AI. Smarter Conversations.</strong>
+</p>
