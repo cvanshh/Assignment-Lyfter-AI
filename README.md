@@ -1,75 +1,236 @@
-# Relay: LLM chatbot with key failover and response caching
+Relay — Resilient LLM Chatbot
 
-FastAPI + LiteLLM + SQLite backend, React (Vite) frontend, Docker for everything.
+A reliable, full-stack AI chatbot engineered for intelligent API failover, response caching, and persistent conversations.
 
-## 1. Live URLs
-- Frontend: `https://<your-frontend>.onrender.com`
-- Backend: `https://<your-backend>.onrender.com` (try `/health`)
-- Demo video: `<link>`
+Relay is built using FastAPI, LiteLLM, React, and SQLite. It addresses common challenges in LLM applications by automatically handling API failures, reducing redundant model calls, and maintaining contextual conversations.
 
-## 2. Run locally
-**With Docker**
-```bash
-cp .env.example .env     # add 2+ real Gemini keys to LLM_API_KEYS
-make up                  # frontend :3000, backend :8000
+1. Live Demo
+
+Component| Link
+Frontend| "Live Application" (https://assignment-lyfter-ai.vercel.app/)
+Backend| "Backend Service" (https://assignment-lyfter-ai-1.onrender.com)
+Demo Video| "Watch Project Demo" (https://drive.google.com/file/d/1nnplIg33chDTSIYpJa7ZNr1NzXY-K1CM/view?usp=drivesdk)
+
+2. Features
+
+- Automatic API Key Failover: Automatically switches between configured Gemini API keys when requests fail.
+- Intelligent Response Caching: Avoids redundant LLM calls using LiteLLM's built-in caching.
+- Multi-turn Conversations: Maintains contextual chat history using SQLite.
+- Request Metadata: Displays model information, response source, latency, and token usage.
+- Failure Simulation: Simulates API failures to demonstrate fallback mechanisms without exhausting real API keys.
+- Key Cooldown: Temporarily deprioritizes failed keys to improve reliability.
+- Secure Configuration: Keeps API credentials in environment variables.
+- Docker Support: Runs the complete application using Docker Compose.
+
+3. Technology Stack
+
+Component| Technologies
+Frontend| React, Vite, JavaScript
+Backend| Python, FastAPI
+LLM Integration| LiteLLM, Google Gemini
+Database| SQLite
+Caching| LiteLLM Cache
+Deployment| Vercel, Render
+Containerization| Docker, Docker Compose
+Testing| Pytest
+
+4. System Architecture
+
+flowchart TD
+    A[React Frontend] --> B[FastAPI Backend]
+    B --> C[Session Manager]
+    C --> D[SQLite Database]
+    B --> E[LiteLLM Gateway]
+    E --> F{Response Cache}
+    F -->|Cache Hit| G[Cached Response]
+    F -->|Cache Miss| H[API Key Pool]
+    H --> I[Gemini Key 1]
+    I -->|Failure| J[Gemini Key 2]
+    I -->|Success| K[Generate Response]
+    J -->|Success| K
+    K --> L[Store Conversation]
+    L --> A
+    G --> A
+
+How It Works
+
+1. The user sends a message through the React interface.
+2. FastAPI retrieves the conversation history from SQLite.
+3. LiteLLM checks whether a matching response exists in the cache.
+4. On a cache miss, the gateway attempts inference using the configured API keys.
+5. If an API key fails, the next available key is attempted automatically.
+6. The successful response and metadata are stored.
+7. The frontend displays the response along with its execution details.
+
+5. Key Design Decisions
+
+A. API Key Failover
+
+Relay uses a sequential API key pool instead of relying on a single API key.
+
+- Each key is attempted individually.
+- Failed requests trigger automatic fallback.
+- Handles rate limits, quota errors, authentication errors, timeouts, and server errors.
+- Failed keys receive a temporary 30-second cooldown.
+- Simulated failures do not trigger cooldowns.
+- Returns a structured "503" response if all configured keys fail.
+
+API keys are identified using labels such as "key_1" and "key_2", never their actual values.
+
+B. Response Caching
+
+Uses LiteLLM's built-in caching mechanism.
+
+- Cache keys are based on the model and complete message history.
+- Identical requests can reuse previously generated responses.
+- Cache hits report "LLM_CACHE".
+- Fresh responses report "LIVE_INFERENCE".
+- Simulated failure requests bypass caching.
+
+Supports in-memory and disk-based caching configurations.
+
+C. SQLite Session Management
+
+SQLite maintains persistent conversation history.
+
+- Every conversation has a unique session ID.
+- User and assistant messages are stored separately.
+- Previous messages are retrieved to maintain context.
+- System prompts are maintained per session.
+- Successful conversation turns are committed transactionally.
+
+D. Security and Reliability
+
+- API keys are stored in environment variables.
+- Sensitive credentials are never exposed in API responses or logs.
+- CORS is restricted to configured frontend origins.
+- Input validation prevents invalid requests.
+- Errors are returned as structured JSON.
+- Docker containers run using a non-root user.
+- Failure simulation is disabled unless explicitly enabled.
+
+6. Run Locally
+
+Prerequisites
+
+- Python 3.11+
+- Node.js
+- Docker Desktop (optional)
+- At least two Gemini API keys for failover testing.
+
+Option A: Using Docker
+
+Clone the repository:
+
+git clone <your-github-repository-url>
+cd lyftr-chatbot
+
+Create the environment file:
+
+cp .env.example .env
+
+Configure your Gemini API keys:
+
+LLM_API_KEYS=your_key_1,your_key_2
+
+Start the application:
+
+make up
+
+Access the application:
+
+- Frontend: http://localhost:3000
+- Backend: http://localhost:8000
+
+Stop the application:
+
 make down
-```
-**Without Docker (Windows PowerShell)**
-```powershell
-cp .env.example .env     # add 2+ real Gemini keys to LLM_API_KEYS (or set LLM_MOCK=true for offline demo)
-# One-command launcher (starts backend :8000 and frontend :3000):
+
+Option B: Windows (Without Docker)
+
+Create the environment file:
+
+cp .env.example .env
+
+Configure your API keys or enable mock mode for an offline demonstration.
+
+Start both services:
+
 .\start.ps1
-```
-Or run manually:
-```powershell
-# backend
+
+Alternatively, run them separately.
+
+Backend:
+
 cd backend
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --port 8000
-# frontend (requires Node.js, or serve frontend/dist)
+
+Frontend:
+
 cd frontend
-npm install; npm run dev
-```
-Tests (no real keys needed, uses LiteLLM's mock mode):
-```powershell
-cd backend; .\.venv\Scripts\python.exe -m pytest -v
-```
+npm install
+npm run dev
 
-**Deploying to Render (Free Tier Ready)**:
-1. Push this repo (`lyftr-chatbot`) to GitHub.
-2. In Render Dashboard: **New > Blueprint** and select your repo (`render.yaml` is pre-configured on the `free` plan and auto-wires `VITE_API_URL` from `relay-backend` to `relay-frontend`).
-3. In `relay-backend` Environment settings, set:
-   - `LLM_API_KEYS`: your comma-separated Gemini API keys (`key1,key2`) — or set `LLM_MOCK=true` for an offline demo.
-   - `ALLOWED_ORIGINS`: your deployed `relay-frontend` URL (e.g. `https://relay-frontend.onrender.com`, no trailing slash).
-4. Alternatives: backend on Fly.io/Railway/HF Spaces, frontend on Vercel/Netlify (build `npm run build`, output `dist`, env `VITE_API_URL`). For persistent SQLite on Render, upgrade `relay-backend` to `plan: starter` and uncomment `disk:` in `render.yaml`.
+7. Deployment
 
-## 3. Design decisions
-- **Key fallback.** `llm.complete()` walks the pool in order and calls `litellm.acompletion` with one key at a time. Any failure (429, quota, 5xx, auth, timeout, empty reply) moves to the next key. If all fail, a clean `503 {"detail":"all providers unavailable"}` is returned and nothing is stored. A real failure puts that key on a 30 s cooldown (it is tried last, never dropped), so a dead key doesn't add latency to every request. Simulated failures never trigger cooldown. I used an explicit loop instead of `Router` so key ids, attempts and the simulation hook are exact.
-- **Caching.** LiteLLM's built-in cache (`local` in-memory, or `disk` via `CACHE_TYPE`). The key is model + the full message list, independent of which API key is used, so the same first message in a new session is a hit and any different message is a miss. A hit is detected from LiteLLM's `cache_hit` flag; it reports `key_id: null`, `fallback_attempts: 0` and the stored token usage. Requests carrying `X-Simulate-Failure` bypass the cache so they always return a real, fresh answer.
-- **SQLite sessions.** Path comes from `DATABASE_URL` (a Docker volume at `/data`). Schema is created on startup, WAL mode on. A turn (user + assistant rows) is written in one transaction only after success, so failed requests never pollute history. A small `sessions` table stores the per-session system prompt. The client sends only the new message; the server rebuilds the context.
-- **Security.** Keys live only in env vars, are never logged or returned (only `key_1`...), CORS is restricted to `ALLOWED_ORIGINS`, input is validated, all errors are JSON, the container runs as non-root, and the failure hook is off unless `ENABLE_FAILURE_SIMULATION=true`.
+Relay is deployed using Vercel and Render.
 
-## 4. Verification
-```bash
-B=https://<backend>
-curl $B/health
-# live, then cache hit from a brand-new session (same reply, key_id null, faster)
-curl -s $B/chat -H 'content-type: application/json' -d '{"session_id":"a1","message":"What is the capital of France?"}'
-curl -s $B/chat -H 'content-type: application/json' -d '{"session_id":"b2","message":"What is the capital of France?"}'
-# failover: key_1 fails, key_2 answers
-curl -s $B/chat -H 'content-type: application/json' -H 'X-Simulate-Failure: key_1=429' -d '{"session_id":"c3","message":"hello"}'
-# all keys fail: 503, nothing stored
-curl -si $B/chat -H 'content-type: application/json' -H 'X-Simulate-Failure: *=429' -d '{"session_id":"d4","message":"hello"}'
-curl -s $B/sessions/a1/messages
-```
-In the UI: every reply shows source, model, latency and per-request tokens. Use **Replay first message in new chat** for an instant cache hit, and the **Failure simulator** to watch the key pool react.
+Frontend — Vercel
 
-## 5. Setup Used
-Claude (Anthropic) for scaffolding and review; VS Code; pytest; Docker Desktop. <edit with your own tools>
+https://assignment-lyfter-ai.vercel.app/
 
-## 6. Bonus features
-- **Routing trail on every reply** (`key_1 failed (429)` then `key_2 answered`, or `Served from cache`): failover is visible, not hidden. Backed by an extra `attempts` field in `metadata`.
-- **Live key-pool panel** showing which key answered, failed or stood by.
-- **One-click failure simulator** driving `X-Simulate-Failure`, for demos without exhausting real keys.
-- **Replay in new chat** to demonstrate cross-session cache hits in one click.
-- **Key cooldown** so dead keys don't slow every request.
-- Per-session system prompt (persisted), readable error messages for 422/503/network failures.
+Backend — Render
+
+https://assignment-lyfter-ai-1.onrender.com
+
+Deployment Configuration
+
+1. Push the project to GitHub.
+2. Deploy the frontend through Vercel.
+3. Deploy the backend through Render.
+4. Configure "VITE_API_URL" with the deployed backend URL.
+5. Configure the required backend environment variables.
+6. Set "ALLOWED_ORIGINS" to the deployed frontend URL.
+
+For persistent SQLite storage across container restarts, configure a persistent disk on Render.
+
+8. Testing and Verification
+
+Backend tests can be executed without real API keys using LiteLLM mock mode.
+
+cd backend
+.\.venv\Scripts\python.exe -m pytest -v
+
+The following scenarios can be demonstrated directly through the application:
+
+Test Scenario| Expected Behaviour
+Normal Chat| Generates an AI response
+Cache Hit| Reuses a previously cached response
+API Key Failure| Automatically switches to another key
+Complete API Failure| Displays a readable error
+Multi-turn Chat| Retains previous conversation context
+Token Tracking| Displays per-request token usage
+
+9. Additional Features
+
+Beyond the core requirements, Relay includes:
+
+- Visual Routing Trail: Shows which API key failed and which key successfully generated the response.
+- Live Key Pool Panel: Displays the status of configured API keys.
+- One-click Failure Simulator: Demonstrates different failure scenarios directly through the interface.
+- Cross-session Cache Replay: Replays an earlier message in a new session to demonstrate cache reuse.
+- Key Cooldown Mechanism: Prevents repeatedly attempting recently failed keys.
+- Per-session System Prompts: Supports customized instructions for individual conversations.
+- Readable Error Handling: Displays understandable messages for validation, server, and network failures.
+
+10. Development Tools
+
+- Visual Studio Code
+- Claude — AI-assisted scaffolding and code review
+- Docker Desktop
+- Pytest
+- Git and GitHub
+
+---
+
+Relay — Making LLM applications more reliable, resilient, and efficient.
