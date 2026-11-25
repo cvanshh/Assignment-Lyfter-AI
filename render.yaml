@@ -1,0 +1,30 @@
+# Render Blueprint: New > Blueprint > pick this repo.
+# After deploy, set LLM_API_KEYS and ALLOWED_ORIGINS (your frontend URL, e.g. https://relay-frontend.onrender.com) on relay-backend.
+services:
+  - type: web
+    name: relay-backend
+    runtime: docker
+    rootDir: backend
+    plan: free               # upgrade to "starter" and uncomment "disk:" below for persistent SQLite across restarts
+    healthCheckPath: /health
+    # disk: { name: data, mountPath: /data, sizeGB: 1 }
+    envVars:
+      - { key: DATABASE_URL, value: "sqlite:////data/app.db" }
+      - { key: CACHE_DIR, value: /data/llm_cache }
+      - { key: LLM_MODEL, value: "gemini/gemini-flash-latest" }
+      - { key: ENABLE_FAILURE_SIMULATION, value: "true" }
+      - { key: LLM_API_KEYS, sync: false }
+      - { key: ALLOWED_ORIGINS, sync: false }
+  - type: web
+    name: relay-frontend
+    runtime: static
+    rootDir: frontend
+    buildCommand: VITE_API_URL="https://${API_HOST}" npm install && npm run build
+    staticPublishPath: dist
+    routes: [{ type: rewrite, source: /*, destination: /index.html }]
+    envVars:
+      - key: API_HOST
+        fromService:
+          type: web
+          name: relay-backend
+          property: host
